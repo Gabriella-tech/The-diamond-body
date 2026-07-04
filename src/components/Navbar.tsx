@@ -32,7 +32,6 @@ export function Navbar() {
 
   return (
     <>  
-      {/* Main nav */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-100">
         <Container className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
@@ -51,13 +50,7 @@ export function Navbar() {
             {links.map((l) => {
               const active = path === l.to || (l.to !== "/" && path.startsWith(l.to));
               return (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  className={`text-sm font-semibold tracking-wide transition-colors ${
-                    active ? "text-[#4A0E16]" : "text-gray-700 hover:text-[#4A0E16]"
-                  }`}
-                >
+                <Link key={l.to} to={l.to} className={`text-sm font-semibold tracking-wide transition-colors ${active ? "text-[#4A0E16]" : "text-gray-700 hover:text-[#4A0E16]"}`}>
                   {l.label}
                 </Link>
               );
@@ -65,12 +58,8 @@ export function Navbar() {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            <button
-              onClick={() => setSearchOpen((s) => !s)}
-              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-700 transition"
-              aria-label="Search"
-            >
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button onClick={() => setSearchOpen((s) => !s)} className="p-2.5 rounded-full hover:bg-gray-100 text-gray-700 transition" aria-label="Search">
               <IconSearch size={20} />
             </button>
 
@@ -92,47 +81,41 @@ export function Navbar() {
               )}
             </Link>
 
-            {/* Account */}
-            <div className="relative hidden sm:block">
+            {/* Account - FIXED FOOTPRINT */}
+            <div className="relative hidden sm:block min-w-[40px]">
               <button
-                onClick={() => setAcctOpen((s) => !s)}
+                onClick={() => {
+                  if (!user) {
+                    navigate("/login");
+                  } else {
+                    setAcctOpen((s) => !s);
+                  }
+                }}
                 onBlur={() => setTimeout(() => setAcctOpen(false), 150)}
-                className="p-2.5 rounded-full hover:bg-gray-100 text-gray-700 transition flex items-center gap-1"
+                className="p-2.5 rounded-full hover:bg-gray-100 text-gray-700 transition flex items-center justify-center"
               >
                 <IconUser size={20} />
-                <IconChevronDown size={14} />
+                {user && <IconChevronDown size={14} className="ml-0.5" />}
               </button>
-              {acctOpen && (
+              
+              {acctOpen && user && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50">
-                  {user ? (
-                    <>
-                      <div className="px-3 py-2 border-b border-gray-100 mb-1">
-                        <div className="font-semibold text-sm">{user.name}</div>
-                        <div className="text-xs text-gray-500">{user.email}</div>
-                      </div>
-                      <Link to={dashboardPath(user.role)} className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My Dashboard</Link>
-                      {user.role !== "customer" && user.role !== "nation" && (
-                        <Link to="/dashboard/nation" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Nation Dashboard</Link>
-                      )}
-                      {user.role === "super_admin" && (
-                        <Link to="/dashboard/admin" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Admin Dashboard</Link>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <Link to="/login" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50 font-semibold text-[#4A0E16]">Login</Link>
-                      <Link to="/register" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Create Account</Link>
-                    </>
+                  <div className="px-3 py-2 border-b border-gray-100 mb-1">
+                    <div className="font-semibold text-sm">{user.name}</div>
+                    <div className="text-xs text-gray-500">{user.email}</div>
+                  </div>
+                  <Link to={dashboardPath(user.role)} className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My Dashboard</Link>
+                  {user.role !== "customer" && user.role !== "nation" && (
+                    <Link to="/dashboard/nation" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Nation Dashboard</Link>
+                  )}
+                  {user.role === "super_admin" && (
+                    <Link to="/dashboard/admin" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Admin Dashboard</Link>
                   )}
                 </div>
               )}
             </div>
 
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="lg:hidden p-2.5 rounded-full hover:bg-gray-100 text-gray-700"
-              aria-label="Menu"
-            >
+            <button onClick={() => setMenuOpen(true)} className="lg:hidden p-2.5 rounded-full hover:bg-gray-100 text-gray-700" aria-label="Menu">
               <IconMenu size={22} />
             </button>
           </div>
@@ -145,17 +128,9 @@ export function Navbar() {
               <form onSubmit={onSearch} className="flex gap-2">
                 <div className="flex-1 relative">
                   <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input
-                    autoFocus
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search wellness products..."
-                    className="w-full pl-12 pr-4 py-3 rounded-full border border-gray-200 focus:border-[#4A0E16] focus:outline-none"
-                  />
+                  <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search wellness products..." className="w-full pl-12 pr-4 py-3 rounded-full border border-gray-200 focus:border-[#4A0E16] focus:outline-none" />
                 </div>
-                <button type="submit" className="px-6 py-3 bg-[#4A0E16] text-white rounded-full font-semibold text-sm">
-                  Search
-                </button>
+                <button type="submit" className="px-6 py-3 bg-[#4A0E16] text-white rounded-full font-semibold text-sm">Search</button>
               </form>
             </Container>
           </div>
@@ -178,14 +153,7 @@ export function Navbar() {
             </div>
             <nav className="space-y-1">
               {links.map((l) => (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-4 py-3 rounded-xl hover:bg-gray-50 font-semibold text-gray-800"
-                >
-                  {l.label}
-                </Link>
+                <Link key={l.to} to={l.to} onClick={() => setMenuOpen(false)} className="block px-4 py-3 rounded-xl hover:bg-gray-50 font-semibold text-gray-800">{l.label}</Link>
               ))}
               <div className="border-t border-gray-100 my-4" />
               {user ? (
