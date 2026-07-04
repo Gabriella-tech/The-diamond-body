@@ -55,7 +55,7 @@ export function ProductDetails({ slug }: { slug: string }) {
               )}
             </div>
             <div className="grid grid-cols-4 gap-3 mt-4">
-              {product.gallery.map((g, i) => (
+              {(product.gallery || [product.image]).map((g, i) => (
                 <div key={i} className="aspect-square bg-[#F5F5F5] rounded-xl overflow-hidden border border-gray-100">
                   <img src={g} className="w-full h-full object-cover" alt="" />
                 </div>
@@ -65,7 +65,9 @@ export function ProductDetails({ slug }: { slug: string }) {
 
           {/* Info */}
           <div>
-            <div className="text-xs text-gray-500 uppercase tracking-[0.2em] font-semibold mb-2">{product.tagline}</div>
+            {product.tagline && (
+              <div className="text-xs text-gray-500 uppercase tracking-[0.2em] font-semibold mb-2">{product.tagline}</div>
+            )}
             <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#222] mb-4">{product.name}</h1>
             <div className="flex items-center gap-3 mb-6">
               <StarRating value={product.rating} size={18} showNumber />
@@ -162,29 +164,37 @@ export function ProductDetails({ slug }: { slug: string }) {
           <div className="py-8">
             {tab === "benefits" && (
               <ul className="grid sm:grid-cols-2 gap-3">
-                {product.benefits.map((b, i) => (
-                  <li key={i} className="flex items-center gap-3 p-4 bg-[#F5F5F5] rounded-xl">
-                    <div className="w-8 h-8 rounded-full bg-[#4A0E16] text-white flex items-center justify-center flex-shrink-0">
-                      <IconCheck size={16}/>
-                    </div>
-                    <span className="text-sm text-[#222]">{b}</span>
-                  </li>
-                ))}
+                {(product.benefits || []).length === 0 ? (
+                  <p className="text-gray-500 text-sm">Product benefit highlights available upon request.</p>
+                ) : (
+                  (product.benefits || []).map((b, i) => (
+                    <li key={i} className="flex items-center gap-3 p-4 bg-[#F5F5F5] rounded-xl">
+                      <div className="w-8 h-8 rounded-full bg-[#4A0E16] text-white flex items-center justify-center flex-shrink-0">
+                        <IconCheck size={16}/>
+                      </div>
+                      <span className="text-sm text-[#222]">{b}</span>
+                    </li>
+                  ))
+                )}
               </ul>
             )}
             {tab === "ingredients" && (
               <div className="grid sm:grid-cols-3 gap-3">
-                {product.ingredients.map((ing, i) => (
-                  <div key={i} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#222]">
-                    {ing}
-                  </div>
-                ))}
+                {(product.ingredients || []).length === 0 ? (
+                  <p className="text-gray-500 text-sm">Ingredient details available on product packaging.</p>
+                ) : (
+                  (product.ingredients || []).map((ing, i) => (
+                    <div key={i} className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-[#222]">
+                      {ing}
+                    </div>
+                  ))
+                )}
               </div>
             )}
             {tab === "reviews" && (
               <div className="space-y-4 max-w-3xl">
                 {reviews.length === 0 ? (
-                  <p className="text-gray-500">No reviews yet. Be the first!</p>
+                  <p className="text-gray-500 text-sm">No reviews yet. Be the first!</p>
                 ) : reviews.map((r) => (
                   <div key={r.id} className="bg-white border border-gray-100 rounded-2xl p-6">
                     <div className="flex items-start justify-between mb-2">

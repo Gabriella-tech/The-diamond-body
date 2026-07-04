@@ -14,9 +14,9 @@ import {
 } from "./store";
 import { NATIONS, type Nation } from "../data/nations";
 import { SEED_PICKUP_STATIONS, type PickupStation, DELIVERY_FEE } from "../data/pickupStations";
-import { PRODUCTS } from "../data/products";
+import { PRODUCTS, type Product } from "../data/products";
+import { apiService } from "../apiService";
 
-// Bump key — new schema (Nations + Pickup Stations, no leaders).
 const LS_KEY = "diamondbody.v4";
 
 type Persisted = {
@@ -48,10 +48,6 @@ function loadInitial(): Persisted {
     subscribers: ["wellness@example.com", "kemi@example.com"],
   };
 }
-
-// ============================================================================
-// SEED DATA — 20 orders distributed across the 8 Nations
-// ============================================================================
 
 const SEED_CUSTOMERS = [
   { name: "Amara Okafor",   email: "amara@example.com",   phone: "+2348012345001", city: "Lekki",         state: "Lagos",   street: "12 Admiralty Way" },
@@ -87,7 +83,6 @@ function seedOrders(): Order[] {
     }
     const subtotal = items.reduce((s, it) => s + it.price * it.quantity, 0);
 
-    // Delivery: alternate between Home Delivery and Pickup Station
     const deliveryMethod: DeliveryMethod = i % 2 === 0 ? "Home Delivery" : "Pickup Station";
     const shipping = deliveryMethod === "Pickup Station" ? 0 : DELIVERY_FEE;
     const pickup = deliveryMethod === "Pickup Station"
@@ -151,7 +146,6 @@ function seedOrders(): Order[] {
       nationId: nation.id,
       nationName: nation.name,
       nationSlug: nation.slug,
-      // Sprinkle some referral codes onto a few orders
       referralCode: i % 3 === 0 ? `REF-${pad(1000 + i, 4)}` : undefined,
       deliveryMethod,
       pickupStationId: pickup?.id,
@@ -173,10 +167,6 @@ function mulberry32(seed: number) {
   };
 }
 
-// ============================================================================
-// PROVIDER
-// ============================================================================
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const init = useMemo(loadInitial, []);
   const [user, setUser] = useState<User | null>(init.user);
@@ -187,8 +177,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [subscribers, setSubscribers] = useState<string[]>(init.subscribers);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Nations are a constant locked list — not persisted.
+  // Backend Pipeline State
+  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
   const nations: Nation[] = NATIONS;
+
+  useEffect(() => {
+    async function fetchLiveProducts() {
+      setLoading(true);
+      setError(null);
+      try {
+        const liveData = await apiService.getProducts();
+        // Only override our items if the server actually has products inside its database
+        if (liveData && Array.isArray(liveData) && liveData.length > 0) {
+          setProducts(liveData);
+        }
+      } catch (err: any) {
+        console.error("Backend fetch failed, holding onto local fallbacks:", err);
+        setError(err.message || "Failed to load products from server");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLiveProducts();
+  }, []);
 
   useEffect(() => {
     const data: Persisted = { user, cart, wishlist, orders, pickupStations, subscribers };
@@ -280,6 +294,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const value: AppState = {
+    products,
+    loading,
+    error,
     user,
     cart,
     wishlist,

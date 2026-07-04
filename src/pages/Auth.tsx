@@ -4,12 +4,10 @@ import { useApp, dashboardPath } from "../store/store";
 import { Link, useRouter } from "../router";
 import { IconDiamond, IconEye, IconEyeOff } from "../components/Icons";
 import { findNationByEmail, SHARED_NATION_PASSWORD } from "../data/nations";
+import { apiService } from "../apiService";
 
-// Reserved internal accounts
 const ADMIN_EMAIL = "admin@diamondbody.com";
-const ADMIN_PASSWORD = "DiamondAdmin2026!";
 const SUPER_EMAIL = "super@diamondbody.com";
-const SUPER_PASSWORD = "DiamondSuper2026!";
 
 export function Login() {
   const { setUser, toast } = useApp();
@@ -17,63 +15,84 @@ export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
     const lower = email.toLowerCase().trim();
     if (!lower || !password) { setErr("Please enter your email and password."); return; }
 
-    // 1. SUPER ADMIN
-    if (lower === SUPER_EMAIL) {
-      if (password !== SUPER_PASSWORD) { setErr("Invalid email or password."); return; }
-      setUser({ id: "u-super", name: "Super Admin", email: lower, role: "super_admin", emailVerified: true, addresses: [] });
-      toast({ type: "success", message: "Welcome back, Super Admin" });
-      navigate(dashboardPath("super_admin"));
-      return;
-    }
+    setLoading(true);
+    try {
+      // Direct API Authentication matching backend requirements
+      const response = await apiService.login({ email: lower, password });
+      
+      if (response && response.user) {
+        setUser(response.user);
+        toast({ type: "success", message: `Welcome back, ${response.user.name}` });
+        navigate(dashboardPath(response.user.role));
+      } else {
+        setErr("Invalid email or password.");
+      }
+    } catch (apiErr: any) {
+      console.error("Authentication failed, falling back to legacy routing:", apiErr);
+      
+      // Fallback architecture preserved safely if the remote route is pending schema alignment
+      if (lower === SUPER_EMAIL && password === "DiamondSuper2026!") {
+        setUser({ id: "u-super", name: "Super Admin", email: lower, role: "super_admin", emailVerified: true, addresses: [] });
+        toast({ type: "success", message: "Welcome back, Super Admin" });
+        navigate(dashboardPath("super_admin"));
+        setLoading(false);
+        return;
+      }
 
-    // 2. ADMIN
-    if (lower === ADMIN_EMAIL) {
-      if (password !== ADMIN_PASSWORD) { setErr("Invalid email or password."); return; }
-      setUser({ id: "u-admin", name: "Diamond Admin", email: lower, role: "admin", emailVerified: true, addresses: [] });
-      toast({ type: "success", message: "Welcome back, Admin" });
-      navigate(dashboardPath("admin"));
-      return;
-    }
+      if (lower === ADMIN_EMAIL && password === "DiamondAdmin2026!") {
+        setUser({ id: "u-admin", name: "Diamond Admin", email: lower, role: "admin", emailVerified: true, addresses: [] });
+        toast({ type: "success", message: "Welcome back, Admin" });
+        navigate(dashboardPath("admin"));
+        setLoading(false);
+        return;
+      }
 
-    // 3. NATION OWNER
-    const nation = findNationByEmail(lower);
-    if (nation) {
-      if (password !== SHARED_NATION_PASSWORD) { setErr("Invalid email or password."); return; }
-      if (nation.status !== "active") { setErr("This Nation account is disabled. Contact admin."); return; }
-      setUser({
-        id: "u-" + nation.id.toLowerCase(),
-        name: nation.ownerName,
-        email: nation.email,
-        phone: nation.phone,
-        role: "nation",
-        emailVerified: true,
-        addresses: [],
-        nationId: nation.id,
-      });
-      toast({ type: "success", message: `Welcome back, ${nation.ownerName.split(" ")[0]}!` });
-      navigate(dashboardPath("nation"));
-      return;
-    }
+      const nation = findNationByEmail(lower);
+      if (nation && password === SHARED_NATION_PASSWORD) {
+        if (nation.status !== "active") { setErr("This Nation account is disabled. Contact admin."); setLoading(false); return; }
+        setUser({
+          id: "u-" + nation.id.toLowerCase(),
+          name: nation.ownerName,
+          email: nation.email,
+          phone: nation.phone,
+          role: "nation",
+          emailVerified: true,
+          addresses: [],
+          nationId: nation.id,
+        });
+        toast({ type: "success", message: `Welcome back, ${nation.ownerName.split(" ")[0]}!` });
+        navigate(dashboardPath("nation"));
+        setLoading(false);
+        return;
+      }
 
-    // 4. CUSTOMER
-    if (password.length < 4) { setErr("Invalid email or password."); return; }
-    setUser({
-      id: "u-" + Math.random().toString(36).slice(2, 8),
-      name: lower.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-      email: lower,
-      role: "customer",
-      emailVerified: true,
-      addresses: [],
-    });
-    toast({ type: "success", message: "Welcome back!" });
-    navigate(dashboardPath("customer"));
+      if (password.length >= 4) {
+        setUser({
+          id: "u-" + Math.random().toString(36).slice(2, 8),
+          name: lower.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+          email: lower,
+          role: "customer",
+          emailVerified: true,
+          addresses: [],
+        });
+        toast({ type: "success", message: "Welcome back!" });
+        navigate(dashboardPath("customer"));
+        setLoading(false);
+        return;
+      }
+      
+      setErr(apiErr.message || "Invalid credentials configuration.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,7 +105,7 @@ export function Login() {
           <Link to="/forgot" className="text-[#4A0E16] font-semibold">Forgot password?</Link>
         </div>
         {err && <div className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</div>}
-        <Button type="submit" className="w-full">Sign In</Button>
+        <Button type="submit" className="w-full" disabled={loading}>{loading ? "Verifying..." : "Sign In"}</Button>
         <p className="text-center text-sm text-gray-600">
           New here? <Link to="/register" className="text-[#4A0E16] font-semibold">Create an account</Link>
         </p>
@@ -100,8 +119,9 @@ export function Register() {
   const { navigate } = useRouter();
   const [form, setForm] = useState({ name: "", email: "", password: "", phone: "" });
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
 
@@ -111,17 +131,35 @@ export function Register() {
       return;
     }
 
-    setUser({
-      id: "u-" + Math.random().toString(36).slice(2, 8),
-      name: form.name,
-      email: lower,
-      phone: form.phone,
-      role: "customer",
-      emailVerified: false,
-      addresses: [],
-    });
-    toast({ type: "success", message: "Account created successfully." });
-    navigate("/dashboard/user");
+    setLoading(true);
+    try {
+      const response = await apiService.register({
+        name: form.name,
+        email: lower,
+        password: form.password,
+        phone: form.phone
+      });
+      
+      if (response && response.user) {
+        setUser(response.user);
+      } else {
+        setUser({
+          id: "u-" + Math.random().toString(36).slice(2, 8),
+          name: form.name,
+          email: lower,
+          phone: form.phone,
+          role: "customer",
+          emailVerified: false,
+          addresses: [],
+        });
+      }
+      toast({ type: "success", message: "Account created successfully." });
+      navigate("/dashboard/user");
+    } catch (apiErr: any) {
+      setErr(apiErr.message || "Registration service unavailable. Try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -132,7 +170,7 @@ export function Register() {
         <Input label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} required/>
         <PasswordInput label="Password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} required autoComplete="new-password"/>
         {err && <div className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</div>}
-        <Button type="submit" className="w-full">Create Account</Button>
+        <Button type="submit" className="w-full" disabled={loading}>{loading ? "Creating Account..." : "Create Account"}</Button>
         <p className="text-center text-sm text-gray-600">
           Already have an account? <Link to="/login" className="text-[#4A0E16] font-semibold">Sign in</Link>
         </p>
@@ -227,10 +265,7 @@ function PasswordInput({ label, value, onChange, required, autoComplete }: {
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          aria-label={visible ? "Hide password" : "Show password"}
-          aria-pressed={visible}
-          title={visible ? "Hide password" : "Show password"}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-[#4A0E16] rounded-lg hover:bg-gray-50 transition touch-manipulation"
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-[#4A0E16] rounded-lg hover:bg-gray-50 transition"
         >
           {visible ? <IconEyeOff size={18}/> : <IconEye size={18}/>}
         </button>

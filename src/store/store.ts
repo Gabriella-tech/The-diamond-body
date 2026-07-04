@@ -67,13 +67,10 @@ export type Order = {
   paystackReference?: string;
   bankProofUrl?: string;
   status: OrderStatus;
-  // Nation tracking (auto from URL)
   nationId?: string;
   nationName?: string;
   nationSlug?: string;
-  // Optional free-text referral code
   referralCode?: string;
-  // Delivery
   deliveryMethod: DeliveryMethod;
   pickupStationId?: string;
   pickupStationName?: string;
@@ -87,6 +84,9 @@ export type Toast = {
 };
 
 export type AppState = {
+  products: Product[];
+  loading: boolean;
+  error: string | null;
   user: User | null;
   cart: CartItem[];
   wishlist: string[];
@@ -135,7 +135,7 @@ export function cartCount(cart: CartItem[]) {
 
 export function formatNGN(amount: number) {
   return "₦" + amount.toLocaleString("en-NG");
-}
+} 
 
 export function dashboardPath(role: Role) {
   switch (role) {

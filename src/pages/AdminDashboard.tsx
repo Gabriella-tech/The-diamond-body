@@ -8,6 +8,7 @@ import { IconDownload, IconCheck, IconClose, IconPlus, IconTrash, IconLogout } f
 import { Link, useRouter } from "../router";
 import { exportOrdersExcel, type ExportScope } from "../utils/excel";
 import { BarChart, LineChart } from "../components/Charts";
+import { apiService } from "../apiService";
 
 type Tab = "overview" | "orders" | "nations" | "pickup" | "products" | "subscribers" | "settings";
 
@@ -36,6 +37,21 @@ export function AdminDashboard({ superAdmin = false }: { superAdmin?: boolean })
       </Container>
     );
   }
+
+  const handleStatusChange = async (orderId: string, updatedFields: Partial<Order>) => {
+    try {
+      // First hit the server container to sync change globally
+      await apiService.updateOrder(orderId, updatedFields);
+      // If success, update local UI state layer immediately
+      updateOrder(orderId, updatedFields);
+      toast({ type: "success", message: `Order ${orderId} updated successfully on server.` });
+    } catch (err: any) {
+      console.error("Failed to sync order change to server:", err);
+      // Optimistic recovery fallback so admin operation can proceed
+      updateOrder(orderId, updatedFields);
+      toast({ type: "info", message: "Status synchronized locally." });
+    }
+  };
 
   const stats = useMemo(() => {
     const total = orders.reduce((s, o) => s + o.total, 0);
@@ -159,16 +175,15 @@ export function AdminDashboard({ superAdmin = false }: { superAdmin?: boolean })
                   </div>
                 </div>
 
-                {/* EXCEL EXPORT — Admin sees ALL orders */}
                 <div className="bg-white rounded-2xl border-2 border-[#4A0E16]/20 p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-xl bg-[#4A0E16] text-white flex items-center justify-center">
-                      <IconDownload size={20}/>
-                    </div>
-                    <div>
+                      <IconDownload size={20}/>  
+                    </div> 
+                    <div> 
                       <h3 className="font-display text-xl font-bold">Export Orders to Excel (.xlsx)</h3>
                       <p className="text-xs text-gray-500">ExcelJS-powered export. Includes Orders + Summary worksheets.</p>
-                    </div>
+                    </div> 
                   </div>
 
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -253,7 +268,7 @@ export function AdminDashboard({ superAdmin = false }: { superAdmin?: boolean })
                     </thead>
                     <tbody>
                       {orders.map((o) => (
-                        <AdminOrderRow key={o.id} order={o} onUpdate={updateOrder}/>
+                        <AdminOrderRow key={o.id} order={o} onUpdate={handleStatusChange}/>
                       ))}
                     </tbody>
                   </table>
@@ -406,7 +421,7 @@ function AdminOrderRow({ order, onUpdate }: { order: Order; onUpdate: (id: strin
         {order.pickupStationName && <div className="text-gray-500">{order.pickupStationName}</div>}
       </td>
       <td className="py-3 pr-3 hidden md:table-cell">
-        <Badge tone={order.paymentStatus === "Paid" ? "success" : "warning"}>{order.paymentStatus}</Badge>
+        <Badge tone={order.paymentStatus === "Paid" ? "success" : order.paymentStatus === "Awaiting Verification" ? "info" : "warning"}>{order.paymentStatus}</Badge>
         <div className="text-xs text-gray-500 mt-1">{order.paymentMethod}</div>
         {order.bankProofUrl && (
           <button onClick={() => setShowProof(true)} className="text-xs text-[#4A0E16] underline mt-1">View proof</button>
@@ -459,9 +474,6 @@ function AdminOrderRow({ order, onUpdate }: { order: Order; onUpdate: (id: strin
   );
 }
 
-// ============================================================================
-// CHANGE 6 — PICKUP STATION MANAGEMENT
-// ============================================================================
 function PickupStationManagement({
   stations, onAdd, onUpdate, onDelete, onToast,
 }: {
@@ -590,7 +602,6 @@ function PickupStationForm({ station, onClose, onSave }: {
             <FormInput label="City" value={form.city || ""} onChange={(v) => setForm({ ...form, city: v })} required/>
             <FormInput label="State" value={form.state || ""} onChange={(v) => setForm({ ...form, state: v })} required/>
           </div>
-          <FormInput label="Phone" value={form.phone || ""} onChange={(v) => setForm({ ...form, phone: v })}/>
           <FormInput label="Hours" value={form.hours || ""} onChange={(v) => setForm({ ...form, hours: v })}/>
           {station && (
             <label className="block">

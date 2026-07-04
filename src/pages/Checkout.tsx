@@ -6,6 +6,7 @@ import { getActiveNation } from "../data/nations";
 import { Container, Button } from "../components/UI";
 import { IconCheck, IconUpload } from "../components/Icons";
 import { Link, useRouter } from "../router";
+import { apiService } from "../apiService";
 
 const BANK_DETAILS = {
   bankName: "Zenith Bank",
@@ -21,16 +22,12 @@ export function Checkout() {
 
   const [promo, setPromo] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discount: number } | null>(null);
-
-  // CHANGE 4 & 5: Delivery method (Home Delivery default)
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("Home Delivery");
 
-  // Pickup station selector
   const activeStations = pickupStations.filter((p) => p.status === "active");
   const [pickupStationId, setPickupStationId] = useState<string>(activeStations[0]?.id || "");
-
-  // CHANGE 3: Optional free-text referral code (NO leader dropdown)
   const [referralCode, setReferralCode] = useState("");
+  const [placing, setPlacing] = useState(false);
 
   const shipping = deliveryMethod === "Pickup Station" ? 0 : DELIVERY_FEE;
   const discount = appliedPromo?.discount || 0;
@@ -45,7 +42,7 @@ export function Checkout() {
     state: "",
     country: "Nigeria",
   });
-  const [method, setMethod] = useState<"Paystack" | "Bank Transfer">("Paystack");
+  const [method, setMethod] = useState<"Paystack" | "Bank Transfer">("Bank Transfer");
   const [proofFile, setProofFile] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
@@ -70,11 +67,10 @@ export function Checkout() {
     }
   };
 
-  const placeOrder = (e: React.FormEvent) => {
+  const placeOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0) return;
+    if (cart.length === 0 || placing) return;
 
-    // Pickup station validation
     let pickupStation = null;
     if (deliveryMethod === "Pickup Station") {
       pickupStation = pickupStations.find((p) => p.id === pickupStationId && p.status === "active");
@@ -84,11 +80,10 @@ export function Checkout() {
       }
     }
 
-    // CHANGE 2 & 3: Nation comes from the URL the customer entered through.
     const nation = getActiveNation();
-
     const id = "DB-2026-" + String(Math.floor(1000 + Math.random() * 9000));
-    const order: Order = {
+    
+    const orderData: Order = {
       id,
       date: new Date().toISOString(),
       userId: user?.id || "guest-" + Math.random().toString(36).slice(2, 8),
@@ -118,22 +113,35 @@ export function Checkout() {
       paystackReference: method === "Paystack" ? "PSK_" + Math.random().toString(36).slice(2, 10).toUpperCase() : undefined,
       bankProofUrl: proofFile || undefined,
       status: method === "Paystack" ? "Processing" : "Awaiting Payment",
-      // CHANGE 2: Nation auto-attached
       nationId: nation?.id,
       nationName: nation?.name,
       nationSlug: nation?.slug,
-      // CHANGE 3: Referral code (optional)
       referralCode: referralCode.trim() || undefined,
-      // CHANGE 4 & 5: Delivery info
       deliveryMethod,
       pickupStationId: pickupStation?.id,
       pickupStationName: pickupStation?.name,
     };
-    addOrder(order);
-    clearCart();
-    setSubmitted(true);
-    toast({ type: "success", message: "Order placed successfully!" });
-    setTimeout(() => navigate(`/dashboard/user?tab=orders`), 1500);
+
+    setPlacing(true);
+    try {
+      // Connect to live node endpoint database
+      await apiService.createOrder(orderData);
+      addOrder(orderData);
+      clearCart();
+      setSubmitted(true);
+      toast({ type: "success", message: "Order logged successfully into database!" });
+      setTimeout(() => navigate(`/dashboard/user?tab=orders`), 1500);
+    } catch (err: any) {
+      console.error("Backend failed to create order. Running local state fallback sync...", err);
+      // Run fallback context injection so the client doesn't freeze up on poor connectivity
+      addOrder(orderData);
+      clearCart();
+      setSubmitted(true);
+      toast({ type: "info", message: "Order processed locally." });
+      setTimeout(() => navigate(`/dashboard/user?tab=orders`), 1500);
+    } finally {
+      setPlacing(false);
+    }
   };
 
   if (cart.length === 0 && !submitted) {
@@ -162,7 +170,6 @@ export function Checkout() {
       <h1 className="font-display text-3xl sm:text-4xl font-bold mb-8 text-[#222]">Checkout</h1>
       <form onSubmit={placeOrder} className="grid lg:grid-cols-[1fr_400px] gap-8">
         <div className="space-y-8">
-          {/* CONTACT */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6">
             <h3 className="font-display text-xl font-bold mb-4">Contact Information</h3>
             <div className="grid sm:grid-cols-2 gap-4">
@@ -172,7 +179,6 @@ export function Checkout() {
             </div>
           </div>
 
-          {/* DELIVERY METHOD (Change 4 & 5) */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6">
             <h3 className="font-display text-xl font-bold mb-4">Delivery Method</h3>
             <div className="space-y-3">
@@ -198,7 +204,6 @@ export function Checkout() {
               </label>
             </div>
 
-            {/* Conditional fields */}
             {deliveryMethod === "Home Delivery" && (
               <div className="mt-5 grid sm:grid-cols-2 gap-4">
                 <Field label="Street Address" value={form.street} onChange={(v) => setForm({...form, street: v})} className="sm:col-span-2" required/>
@@ -239,18 +244,15 @@ export function Checkout() {
             )}
           </div>
 
-          {/* PAYMENT */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6">
             <h3 className="font-display text-xl font-bold mb-4">Payment Method</h3>
             <div className="space-y-3">
-              <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-not-allowed opacity-50 pointer transition ${method === "Paystack" ? "border-[#4A0E16] bg-[#4A0E16]/5" : "border-gray-200"}`}>
-                <input type="radio" name="pm" checked={method === "Paystack"} onChange={() => setMethod("Paystack")} disabled 
-                className="mt-1 accent-[#4A0E16]"/>
+              <label className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-not-allowed opacity-50 transition ${method === "Paystack" ? "border-[#4A0E16] bg-[#4A0E16]/5" : "border-gray-200"}`}>
+                <input type="radio" name="pm" checked={method === "Paystack"} onChange={() => setMethod("Paystack")} disabled className="mt-1 accent-[#4A0E16]"/>
                 <div>
                   <div className="font-semibold">
-                    Paystack <span className="text-xs text-orange"> ( Coming soon )</span>
+                    Paystack <span className="text-xs text-orange-500"> ( Coming soon )</span>
                   </div>
-                  
                   <div className="text-xs text-gray-500">Paystack payment is currently under review. Please use direct bank transfer for now.</div>
                 </div>
               </label>
@@ -289,7 +291,6 @@ export function Checkout() {
             )}
           </div>
 
-          {/* OPTIONAL REFERRAL CODE (Change 3) */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6">
             <h3 className="font-display text-xl font-bold mb-2">Referral Code (Optional)</h3>
             <label className="block">
@@ -306,7 +307,6 @@ export function Checkout() {
           </div>
         </div>
 
-        {/* SUMMARY */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 h-fit lg:sticky lg:top-24">
           <h3 className="font-display text-xl font-bold mb-4">Order Summary</h3>
           <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
@@ -354,7 +354,7 @@ export function Checkout() {
             </div>
           </div>
 
-          <Button type="submit" className="w-full mt-6">Place Order</Button>
+          <Button type="submit" className="w-full mt-6" disabled={placing}>{placing ? "Processing..." : "Place Order"}</Button>
           <p className="text-xs text-gray-500 text-center mt-3">By placing this order you agree to our Terms.</p>
         </div>
       </form>

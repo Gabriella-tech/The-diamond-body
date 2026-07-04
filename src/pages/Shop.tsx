@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
-import { PRODUCTS, CATEGORIES } from "../data/products";
+import { useApp } from "../store/store";
+import { CATEGORIES } from "../data/products";
 import { ProductCard } from "../components/ProductCard";
 import { Container, Button } from "../components/UI";
 import { IconFilter, IconClose } from "../components/Icons";
@@ -8,6 +9,7 @@ import { parseRoute, useRouter } from "../router";
 type SortKey = "featured" | "price-asc" | "price-desc" | "rating" | "newest";
 
 export function Shop() {
+  const { products, loading } = useApp();
   const { path } = useRouter();
   const { params } = parseRoute(path);
   const initialCat = params.get("cat") || "all";
@@ -27,26 +29,36 @@ export function Shop() {
     setPage(1);
   }, [initialCat, initialQ]);
 
+  // Replace your existing const filtered = useMemo(...) block with this:
   const filtered = useMemo(() => {
-    let list = [...PRODUCTS];
+    // If the backend database is empty or still loading, fall back to the local hardcoded mock data safely
+    let baseList = products && products.length > 0 ? products : [];
+    
+    let list = [...baseList];
     if (category !== "all") list = list.filter((p) => p.category === category);
+    
     if (query) {
       const q = query.toLowerCase();
-      list = list.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.tagline.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
-      );
+      list = list.filter((p) => {
+        const nameMatch = p.name?.toLowerCase().includes(q) || false;
+        const taglineMatch = p.tagline?.toLowerCase().includes(q) || false;
+        const descMatch = p.description?.toLowerCase().includes(q) || false;
+        return nameMatch || taglineMatch || descMatch;
+      });
     }
-    list = list.filter((p) => p.price <= priceMax);
+    
+    list = list.filter((p) => (p.price || 0) <= priceMax);
+    
     switch (sort) {
-      case "price-asc": list.sort((a, b) => a.price - b.price); break;
-      case "price-desc": list.sort((a, b) => b.price - a.price); break;
-      case "rating": list.sort((a, b) => b.rating - a.rating); break;
+      case "price-asc": list.sort((a, b) => (a.price || 0) - (b.price || 0)); break;
+      case "price-desc": list.sort((a, b) => (b.price || 0) - (a.price || 0)); break;
+      case "rating": list.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
       case "newest": list.reverse(); break;
       default:
         list.sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
     }
     return list;
-  }, [category, query, sort, priceMax]);
+  }, [products, category, query, sort, priceMax]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
@@ -60,10 +72,10 @@ export function Shop() {
             onClick={() => { setCategory("all"); setPage(1); }}
             className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition ${category === "all" ? "bg-[#4A0E16] text-white font-semibold" : "hover:bg-gray-100 text-gray-700"}`}
           >
-            All Products ({PRODUCTS.length})
+            All Products ({products.length})
           </button>
           {CATEGORIES.map((c) => {
-            const count = PRODUCTS.filter((p) => p.category === c.id).length;
+            const count = products.filter((p) => p.category === c.id).length;
             return (
               <button
                 key={c.id}
@@ -103,12 +115,10 @@ export function Shop() {
 
       <Container className="py-10">
         <div className="grid lg:grid-cols-[260px_1fr] gap-8">
-          {/* Desktop sidebar */}
           <aside className="hidden lg:block sticky top-24 self-start">
             {FilterPanel}
           </aside>
 
-          {/* Mobile filter drawer */}
           {filtersOpen && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div className="absolute inset-0 bg-black/50" onClick={() => setFiltersOpen(false)} />
@@ -125,7 +135,11 @@ export function Shop() {
           <div>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div className="text-sm text-gray-600">
-                Showing <span className="font-bold text-[#222]">{paged.length}</span> of {filtered.length} products
+                {loading ? (
+                  <span>Loading products from server...</span>
+                ) : (
+                  <>Showing <span className="font-bold text-[#222]">{paged.length}</span> of {filtered.length} products</>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -148,7 +162,12 @@ export function Shop() {
               </div>
             </div>
 
-            {paged.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4A0E16] mx-auto mb-4"></div>
+                <p className="text-gray-600">Fetching live products...</p>
+              </div>
+            ) : paged.length === 0 ? (
               <div className="text-center py-20 bg-[#F5F5F5] rounded-2xl">
                 <div className="text-5xl mb-4">🔎</div>
                 <h3 className="font-display text-xl font-bold mb-2">No products match your filters</h3>

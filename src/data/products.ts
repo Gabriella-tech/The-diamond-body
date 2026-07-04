@@ -367,6 +367,23 @@ export const PRODUCTS: Product[] = [
     badge: "New",
   },
   {
+    id: "p-mychoco",
+    slug: "mychoco",
+    name: "MyChoco",
+    image: "/images/mychocco.jpeg",
+    gallery: ["/images/mychocco.jpeg"],
+    tagline: "Alkaline Chocolate Drink",
+    description: "MyChoco Alkaline Chocolate Drink is a nutrient-dense beverage. Its core ingredients feature a premium cocoa blend, milk, sugar, and DHA powder for brain development. It is also fortified with a Complete Phyto-Energizer, a proprietary blend of over 130 nutrients including vitamins, fruits, vegetables, and enzymes.",
+    benefits: ["Supports brain development", "Nutrient-dense beverage fortified with over 130 nutrients", "Provides essential vitamins, fruits, vegetables, and enzymes"],
+    ingredients: ["Premium Cocoa Blend", "Milk", "Sugar", "1/3 of Complete Phyto-Energizer", "DHA Powder"],
+    price: 22000,
+    category: "energy", // Fixed: Space removed so it matches your category tab perfectly!
+    inventory: 50,
+    rating: 4.9,
+    reviewsCount: 12,
+    bestSeller: false,
+  },
+  {
     id: "p-ultrah2",
     slug: "ultra-h2",
     name: "Ultra H2",
