@@ -437,7 +437,7 @@ export const PRODUCTS: Product[] = [
     benefits: ["Supports brain development", "Nutrient-dense beverage fortified with over 130 nutrients", "Provides essential vitamins, fruits, vegetables, and enzymes"],
     ingredients: ["Premium Cocoa Blend", "Milk", "Sugar", "1/3 of Complete Phyto-Energizer", "DHA Powder"],
     price: 22000,
-    category: "beverages",
+    category: "energy",
     inventory: 50,
     rating: 4.9,
     reviewsCount: 12,
