@@ -1,31 +1,29 @@
 "use strict";
 
-const router = require("express").Router();
-const c = require("../controllers/product.controller");
-const { requireAuth, requireRole } = require("../middleware/auth.middleware");
+const list = async (req, res) => res.status(200).json({ message: "List" });
+const featured = async (req, res) => res.status(200).json({ message: "Featured" });
+const bestSellers = async (req, res) => res.status(200).json({ message: "Best Sellers" });
+const listCategories = async (req, res) => res.status(200).json({ message: "Categories" });
+const getBySlug = async (req, res) => res.status(200).json({ message: "Slug" });
+const create = async (req, res) => res.status(201).json({ message: "Created" });
+const update = async (req, res) => res.status(200).json({ message: "Updated" });
+const remove = async (req, res) => res.status(200).json({ message: "Removed" });
+const hardDelete = async (req, res) => res.status(200).json({ message: "Hard Deleted" });
+const createCategory = async (req, res) => res.status(201).json({ message: "Category Created" });
+const updateCategory = async (req, res) => res.status(200).json({ message: "Category Updated" });
+const deleteCategory = async (req, res) => res.status(200).json({ message: "Category Deleted" });
 
-// ============================================================================
-// Public routes
-// ============================================================================
-router.get("/", c.list);
-router.get("/featured", c.featured);
-router.get("/best-sellers", c.bestSellers);
-router.get("/categories", c.listCategories);
-router.get("/:slug", c.getBySlug);
-
-// ============================================================================
-// Protected routes (Admin / Super Admin)
-// ============================================================================
-
-// Product Management
-router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), c.create);
-router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), c.update);
-router.delete("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), c.remove); // Soft delete
-router.delete("/hard/:id", requireAuth, requireRole("SUPER_ADMIN"), c.hardDelete); // Permanent delete
-
-// Category Management
-router.post("/categories", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), c.createCategory);
-router.put("/categories/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), c.updateCategory);
-router.delete("/categories/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), c.deleteCategory);
-
-module.exports = router;
+module.exports = {
+  list,
+  featured,
+  bestSellers,
+  listCategories,
+  getBySlug,
+  create,
+  update,
+  remove,
+  hardDelete,
+  createCategory,
+  updateCategory,
+  deleteCategory
+};
