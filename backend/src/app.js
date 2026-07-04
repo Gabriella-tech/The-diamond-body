@@ -32,14 +32,18 @@ app.use(helmet({
 
 // ---------- CORS ----------
 const corsOptions = {
-  origin(origin, cb) {
-    // Allow tools like curl / server-to-server (no origin)
-    if (!origin) return cb(null, true);
-    if (env.CORS_ORIGINS.includes(origin) || env.CORS_ORIGINS.includes("*")) {
-      return cb(null, true);
+  origin: function (origin, callback) {
+    if (!origin || origin === 'https://the-diamond-body-onzj.vercel.app' || origin === 'http://localhost:3000') {
+      return callback(null, true);
     }
-    return cb(new Error(`CORS: origin ${origin} not allowed`));
+    callback(new Error('Not allowed by CORS'));
   },
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  exposedHeaders: ["Content-Disposition"],
+  maxAge: 86400,
+};
   credentials: true,
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Accept"],
